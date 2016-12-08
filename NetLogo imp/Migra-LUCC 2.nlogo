@@ -31,14 +31,25 @@ to setup
 end
 ;------------------------------------------------------------------------------
 to create-landscape
-  ask patches [
+    ask patches [
     ;create a frontier landscape, i.e. all forest
     if ini-landscape = "frontier"
      [set pcolor green]
-
     ;create random landscape composed of patches in three posible states: forest, fallow land, and crop
-    if (ini-landscape = "random")
+    if ini-landscape = "random"
      [set pcolor one-of  [green brown yellow]]
+     ]
+    ; create a regular landscapes for checking model behavior (quadrants and bands)
+    if ini-landscape = "quadrants" [
+     ask patches with [pxcor <= 0 and pycor <= 0] [set pcolor yellow]
+     ask patches with [pxcor >  0 and pycor >  0] [set pcolor green]
+     ask patches with [pxcor <= 0 and pycor >  0] [set pcolor brown]
+     ask patches with [pxcor >  0 and pycor <= 0] [set pcolor one-of [brown green yellow]]]
+    if ini-landscape = "bands" [
+     ask patches [set pcolor green]
+     ask patches with [pxcor >= max-pxcor - ( 2 * (2 * max-pxcor) / 3)] [set pcolor brown]
+     ask patches with [pxcor >= max-pxcor - ((2 * max-pxcor) / 3)] [set pcolor yellow]]
+
 
     ;; MISSING: create options for 'experimental landscape'
 
@@ -46,11 +57,10 @@ to create-landscape
      ;set ag-suit random 4
 
     ;match patch color with state NOTE: this is useless at the moment
+    ask patches [
     if pcolor = green  [set state "forest"]
     if pcolor = brown  [set state "crop"]
     if pcolor = yellow [set state "forest"]
-
-
     ]
 
 end
@@ -425,8 +435,8 @@ CHOOSER
 62
 ini-landscape
 ini-landscape
-"frontier" "quadrants" "bands" "cartoon of real landscape" "random"
-4
+"random" "frontier" "quadrants" "bands" "cartoon"
+0
 
 @#$#@#$#@
 ## WHAT IS IT?
