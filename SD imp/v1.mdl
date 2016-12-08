@@ -1,0 +1,103 @@
+{UTF-8}
+Deforestation=
+	Residents*deforestation ability*Forest area
+	~	ha/year
+	~		|
+
+deforestation ability=
+	0.05
+	~	ha/year/person
+	~		|
+
+Forest area= INTEG (
+	Forest area+Forest regrowth-Deforestation,
+		100)
+	~	ha
+	~		|
+
+Forest regrowth=
+	Forest area*rate of forest growth*(1-(Forest area/Total area))
+	~	ha/year
+	~		|
+
+rate of forest growth=
+	5
+	~	ha/year
+	~		|
+
+Residents=
+	5
+	~	people
+	~		|
+
+Total area=
+	1000
+	~	ha
+	~		|
+
+********************************************************
+	.Control
+********************************************************~
+		Simulation Control Parameters
+	|
+
+FINAL TIME  = 100
+	~	Month
+	~	The final time for the simulation.
+	|
+
+INITIAL TIME  = 0
+	~	Month
+	~	The initial time for the simulation.
+	|
+
+SAVEPER  = 
+        TIME STEP 
+	~	Month [0,?]
+	~	The frequency with which output is stored.
+	|
+
+TIME STEP  = 1
+	~	year [0,?]
+	~	The time step for the simulation.
+	|
+
+\\\---/// Sketch information - do not modify anything except names
+V300  Do not put anything below this section - it will be ignored
+*View 1
+$192-192-192,0,Times New Roman|12||0-0-0|0-0-0|0-0-255|-1--1--1|-1--1--1|72,72,100,0
+10,1,Forest area,554,323,40,20,3,3,0,0,0,0,0,0
+12,4,48,358,319,10,8,0,3,0,0,-1,0,0,0
+1,6,8,1,4,0,0,22,0,0,0,-1--1--1,,1|(480,319)|
+1,7,8,4,100,0,0,22,0,0,0,-1--1--1,,1|(401,319)|
+11,8,0,441,319,6,8,34,3,0,0,1,0,0,0
+10,9,Forest regrowth,441,335,51,8,40,3,0,0,-1,0,0,0
+10,10,rate of forest growth,332,217,51,8,8,3,0,0,0,0,0,0
+1,11,10,8,1,0,0,0,0,64,0,-1--1--1,,1|(422,253)|
+10,12,deforestation ability,800,215,50,8,8,3,0,0,0,0,0,0
+12,13,48,641,449,10,8,0,3,0,0,-1,0,0,0
+1,15,17,13,4,0,0,22,0,0,0,-1--1--1,,1|(638,386)|
+1,16,17,1,100,0,0,22,0,0,0,-1--1--1,,1|(612,326)|
+11,17,0,638,326,8,6,33,3,0,0,4,0,0,0
+10,18,Deforestation,681,326,35,8,40,3,0,0,-1,0,0,0
+1,19,12,17,1,0,0,0,0,64,0,-1--1--1,,1|(645,262)|
+1,22,1,18,1,0,0,0,0,64,0,-1--1--1,,1|(583,258)|
+1,23,1,8,1,0,0,0,0,64,0,-1--1--1,,1|(495,279)|
+10,26,Total area,537,447,26,8,8,3,0,0,0,0,0,0
+1,27,26,9,0,0,0,0,0,64,0,-1--1--1,,1|(493,396)|
+10,28,Residents,860,323,26,8,8,3,0,0,0,0,0,0
+1,29,28,18,0,0,0,0,0,64,0,-1--1--1,,1|(781,323)|
+///---\\\
+:L<%^E!@
+1:Ecol_v2.vdf
+9:Ecol_v2
+23:0
+15:0,0,0,0,0,0
+19:100,0
+27:2,
+34:0,
+4:Time
+5:Forest area
+24:0
+25:7
+26:7
