@@ -1,24 +1,24 @@
 globals [
   agr-comm-price
   urban-wage
-        ]
+]
 
 patches-own [
-  ;ag-suit     ;TO-DO: agricultural suitability (quality) [multiplier]
+  ag-suit      ;TO-DO: agricultural suitability (quality) [multiplier]
   state        ;either forest, crop, or fallow. NOTE: so far this is useless, as onlythe color is used
-            ]
+]
 
 breed [households household]
 households-own [
   migrants       ;members earing an urban wage
   farmworkers    ;members working the line
   capital        ;money available for financing land clearings, migrant travels, houshold maintainance
+  earnings
   landholdings   ;composed of a certain number of patches on different states
   ;productivity   ;to mediate the earnings each household makes out of a land unit (via technology, education, etc)  [multiplier]
-               ]
+]
 
 
-;------------------------------------------------------------------------------
 ;------------------------------------------------------------------------------
 
 to setup
@@ -29,17 +29,31 @@ to setup
   create-social-network
   reset-ticks
 end
+
+to go
+  labor-market
+  agr-comm-market
+  carry-on
+  assess-decide
+  ;household-cycle
+  sucession
+  tick
+  if ticks = 50
+  [stop]
+end
+
 ;------------------------------------------------------------------------------
 to create-landscape
+    ;several options for setting up the initial landscape
+    ;; TO-DO: create an option for 'cartoon landscape' (manual drawing?)
     ask patches [
     ;create a frontier landscape, i.e. all forest
     if ini-landscape = "frontier"
      [set pcolor green]
     ;create random landscape composed of patches in three posible states: forest, fallow land, and crop
     if ini-landscape = "random"
-     [set pcolor one-of  [green brown yellow]]
-     ]
-    ; create a regular landscapes for checking model behavior (quadrants and bands)
+     [set pcolor one-of  [green brown yellow]]]
+    ;create a regular landscapes for checking model behavior (quadrants and bands)
     if ini-landscape = "quadrants" [
      ask patches with [pxcor <= 0 and pycor <= 0] [set pcolor yellow]
      ask patches with [pxcor >  0 and pycor >  0] [set pcolor green]
@@ -49,19 +63,12 @@ to create-landscape
      ask patches [set pcolor green]
      ask patches with [pxcor >= max-pxcor - ( 2 * (2 * max-pxcor) / 3)] [set pcolor brown]
      ask patches with [pxcor >= max-pxcor - ((2 * max-pxcor) / 3)] [set pcolor yellow]]
-
-
-    ;; MISSING: create options for 'experimental landscape'
-
-    ;; TO-DO: assign five levels of agricultural suitability to each parcel, randomly AND include a higher probability for patches of high ag-suit to start as crop
-     ;set ag-suit random 4
-
-    ;match patch color with state NOTE: this is useless at the moment
+    ;match patch color with state
+    ;; NOTE: this is useless at the moment
     ask patches [
     if pcolor = green  [set state "forest"]
     if pcolor = brown  [set state "crop"]
-    if pcolor = yellow [set state "forest"]
-    ]
+    if pcolor = yellow [set state "forest"]]
 
 end
 ;------------------------------------------------------------------------------
@@ -70,11 +77,11 @@ to create-village
     setxy random-xcor random-ycor
     set size 2
     set color gray - 2
+    ;define household's landholdings, allowing for some variability in their size
     ;; FROM: http://netlogo-users.18673.x6.nabble.com/Spacing-between-randomly-placed-turtles-td4861328.html
-    ; assign number of household members that are migrants and resident farmworkers (also defining houseold size)
-    move-to one-of patches with [not any? households in-radius 8]
+     move-to one-of patches with [not any? households in-radius 8]
 
-    ; define household's landholdings, allowing for some variability in their size
+    ; assign number of household members that are migrants and resident farmworkers (also defining houseold size)
     set capital ini-capital + random-float 1
     set migrants random 1
     set farmworkers random 5 + 2
@@ -92,67 +99,65 @@ to create-village
 end
 ;------------------------------------------------------------------------------
 to create-social-network
-  ;; FROM 'Virus on a Network' in Model Library
-  ; The network is created based on proximity (Euclidian distance) between households, until it matches a specified 'average node degree'
+  ;; FROM: 'Virus on a Network' in Model Library
+  ;The network is created based on proximity (Euclidian distance) between households, until it matches a specified 'average node degree'
    let num-links (ave-household-degree * num-households) / 2
     while [count links < num-links] [
     ask one-of households [let choice (min-one-of (other households with [not link-neighbor? myself]) [distance myself])
     if choice != nobody [create-link-with choice]]]
    ask links [set color white]
 end
-
-;------------------------------------------------------------------------------
-;------------------------------------------------------------------------------
-
-to go
-  labor-market
-  agr-comm-market
-  carry-on
-  assess-decide
-  sucession
-  tick
-  if ticks = 50
-  [stop]
-end
 ;------------------------------------------------------------------------------
 to labor-market
-  ; gradually increasing urban wages
-  ifelse ticks = 0
-   [set urban-wage ini-urban-wage ]
-   [set urban-wage urban-wage + 0.5 ]
+  ;gradually increasing urban wages
+  ifelse Δwage? [
+   ifelse ticks = 0
+    [set urban-wage ini-urban-wage ]
+    [set urban-wage urban-wage + 0.5 ]]
+   [set urban-wage ini-urban-wage]
 end
 ;------------------------------------------------------------------------------
 to agr-comm-market
-  ; gradually decreacing commodity prices
-  ifelse ticks = 0
+  ;gradually decreacing commodity prices
+  ifelse Δag-price? [
+   ifelse ticks = 0
+    [set agr-comm-price ini-agr-comm-price]
+    [set agr-comm-price agr-comm-price - 0.1 ]]
    [set agr-comm-price ini-agr-comm-price]
-   [set agr-comm-price agr-comm-price - 0.1 ]
 end
 ;------------------------------------------------------------------------------
 to carry-on
+  ;
   ask households [
-  let crop-patches landholdings with [pcolor = yellow]
-  let forest-patches landholdings with [pcolor = green]
-  ;; PROBLEM: this function is wrong!!
-  ifelse count crop-patches > 0
-   [let earnings ((farmworkers / count crop-patches) * (count crop-patches) * agr-comm-price)
+   let crop-patches landholdings with [pcolor = yellow]
+   let forest-patches landholdings with [pcolor = green]
+   let fallow-patches landholdings with [pcolor = brown]
+
+  ;; PROBLEM: this function is not right...
+  ifelse any? crop-patches
+   [set earnings ( (farmworkers * 0.1) * (count crop-patches * 0.1) * agr-comm-price)
                 + (urban-wage * migrants)
-     ifelse ticks > 0
-      [set capital capital + earnings - (farmworkers * 5)]
-      [set capital ini-capital + earnings - (farmworkers * 5)]
-   ]
-   [if  any? forest-patches
-     [ask one-of forest-patches [set pcolor yellow]
+    ifelse ticks > 0
+     [set capital capital + earnings - (farmworkers * subsistance-cost)]
+     [set capital ini-capital + earnings - (farmworkers * subsistance-cost)]]
+   [ifelse any? fallow-patches
+     [ask one-of fallow-patches [set pcolor yellow]
+      set earnings (urban-wage * migrants)
       ifelse ticks > 0
-       [set capital capital + (urban-wage * migrants) - (farmworkers * 5)]
-       [set capital ini-capital + (urban-wage * migrants) - (farmworkers * 5)]]
-   ]
-   ; if every household member migrates, then household no longer exists
+       [set capital capital + earnings - (farmworkers * subsistance-cost)]
+       [set capital ini-capital + earnings - (farmworkers * subsistance-cost)]]
+     [ask one-of forest-patches [set pcolor yellow]
+      set earnings (urban-wage * migrants)
+      ifelse ticks > 0
+       [set capital capital + earnings - (farmworkers * subsistance-cost) - (0.1 / farmworkers)]
+       [set capital ini-capital + earnings - (farmworkers * subsistance-cost) - (0.1 / farmworkers)]]]
+   ;if every household member migrates, then household no longer exists
+
    if farmworkers = 0
    [die]
+  ]
 
    ;; TO-DO: consider including household life-cycle (births, deaths, aging, etc.)
-  ]
 
 end
 ;------------------------------------------------------------------------------
@@ -164,7 +169,7 @@ to assess-decide
     let fallow-patches landholdings with [pcolor = brown]
     let status-quo-uti (count crop-patches * farmworkers * agr-comm-price) + (urban-wage * migrants)
 
-    let defo-cost (farmworkers * 0.01)
+    let defo-cost (0.1 / farmworkers)
     let pot-extra-farm (((1 + count crop-patches) * farmworkers * agr-comm-price) - defo-cost)
 
     let migra-cost (10 / (1 + count (my-links)))
@@ -181,12 +186,12 @@ to assess-decide
     ;
     if any? fallow-patches
      [if (count crop-patches) > (farmworkers * 2)
-       [if random 9 = 1
+       [if random 100 < crop-to-fallow
          [ask one-of fallow-patches [set pcolor green]]]]
 
     if any? crop-patches
      [if (count crop-patches) > (farmworkers * 2)
-       [if random 9 = 1
+       [if random 100 < crop-to-fallow
          [ask one-of crop-patches [set pcolor brown]]]]
 ]
 end
@@ -194,42 +199,45 @@ end
 to sucession
   ask patches [
     if pcolor = brown
-     [if random 9 = 1
-       [set pcolor green]]]
+     [if random 100 < fallow-to-forest
+       [set pcolor green]]
+  if pcolor = yellow
+     [if random 100 < crop-to-fallow
+       [set pcolor brown]]]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-197
+367
 12
-914
-750
+835
+504
 50
 50
-7.0
+4.07
 1
 10
 1
 1
 1
 0
-0
-0
+1
+1
 1
 -50
 50
 -50
 50
-0
-0
+1
+1
 1
 ticks
 30.0
 
 BUTTON
-12
-319
-78
-352
+37
+560
+103
+593
 NIL
 setup
 NIL
@@ -243,10 +251,10 @@ NIL
 1
 
 BUTTON
-122
-319
-185
-352
+147
+560
+210
+593
 NIL
 go
 NIL
@@ -268,7 +276,7 @@ num-households
 num-households
 0
 100
-69
+70
 1
 1
 NIL
@@ -290,40 +298,40 @@ NIL
 HORIZONTAL
 
 SLIDER
-20
-256
-168
-289
+205
+280
+353
+313
 ini-urban-wage
 ini-urban-wage
 0
 10
-0
+1
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-19
-218
-167
-251
+205
+243
+353
+276
 ini-agr-comm-price
 ini-agr-comm-price
 0
-10
-10
+50
+3
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-11
-179
-183
-212
+205
+206
+355
+240
 ini-capital
 ini-capital
 0
@@ -335,10 +343,10 @@ NIL
 HORIZONTAL
 
 PLOT
-925
-14
-1347
-158
+840
+12
+1209
+157
 demographics
 NIL
 NIL
@@ -355,10 +363,10 @@ PENS
 "household size" 1.0 0 -16777216 true "" "plot (sum [migrants + farmworkers] of households)"
 
 PLOT
-925
-309
-1348
-467
+840
+307
+1210
+466
 landscape
 NIL
 NIL
@@ -375,10 +383,10 @@ PENS
 "fallow lands" 1.0 0 -10402772 true "" "plot 100 * (count patches with [pcolor = brown]) / count patches"
 
 PLOT
-924
-469
-1347
-637
+839
+467
+1209
+636
 social capital
 NIL
 NIL
@@ -393,10 +401,10 @@ PENS
 "default" 1.0 1 -16777216 true "histogram [count (my-links)] of households" "histogram [count (my-links)] of households"
 
 PLOT
-925
-163
-1348
-307
+840
+160
+1210
+305
 accounting
 NIL
 NIL
@@ -408,14 +416,14 @@ true
 true
 "" ""
 PENS
-"farm produce" 1.0 0 -7171555 true "" "if (count patches with [pcolor = yellow]) > 0 \n[\nif count households > 0\n[plot \n((sum [farmworkers] of turtles) / \n (sum [count landholdings with [pcolor = yellow]] of turtles)) * \n(sum [count landholdings with [pcolor = yellow]] of turtles) *\nagr-comm-price]\n]"
+"farm produce" 1.0 0 -7171555 true "" "if (count patches with [pcolor = yellow]) > 0 \n [if count households > 0\n   [plot \n         (sum [farmworkers] of turtles) * 0.1 * \n          (sum [count landholdings with [pcolor = yellow]] of turtles)\n         * 0.1 * agr-comm-price]]"
 "remittances" 1.0 0 -10022847 true "" "plot (urban-wage * \nsum [migrants] of households)"
 
 BUTTON
-124
-356
-188
-390
+149
+597
+213
+631
 NIL
 go
 T
@@ -436,7 +444,103 @@ CHOOSER
 ini-landscape
 ini-landscape
 "random" "frontier" "quadrants" "bands" "cartoon"
+3
+
+SLIDER
+6
+459
+179
+493
+subsistance-cost
+subsistance-cost
 0
+10
+3
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+5
+367
+178
+401
+fallow-to-forest
+fallow-to-forest
+0
+10
+1
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+5
+403
+178
+437
+crop-to-fallow
+crop-to-fallow
+0
+10
+3
+1
+1
+NIL
+HORIZONTAL
+
+MONITOR
+567
+514
+656
+560
+av. earnings
+(sum [capital] of households) / count households
+1
+1
+11
+
+SWITCH
+90
+282
+203
+316
+Δwage?
+Δwage?
+0
+1
+-1000
+
+SWITCH
+89
+245
+202
+279
+Δag-price?
+Δag-price?
+1
+1
+-1000
+
+PLOT
+1213
+466
+1511
+633
+earnings
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"earnings" 1.0 1 -16777216 true "" "histogram [earnings] of turtles"
 
 @#$#@#$#@
 ## WHAT IS IT?
