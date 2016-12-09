@@ -4,7 +4,7 @@ globals [
 ]
 
 patches-own [
-  ag-suit      ;TO-DO: agricultural suitability (quality) [multiplier]
+  ag-suit      ;TO-DO: agricultural suitability (quality) [multiplier] CURRENTLY mixed up with land-productivity
   state        ;either forest, crop, or fallow. NOTE: so far this is useless, as onlythe color is used
 ]
 
@@ -36,6 +36,7 @@ to go
   carry-on
   assess-decide
   ;household-cycle
+  ;nurture-social-network
   sucession
   tick
   if ticks = 50
@@ -123,7 +124,7 @@ to agr-comm-market
    ifelse ticks = 0
     [set agr-comm-price ini-agr-comm-price]
     [set agr-comm-price agr-comm-price - 0.1 ]]
-   [set agr-comm-price ini-agr-comm-price]
+    [set agr-comm-price ini-agr-comm-price]
 end
 ;------------------------------------------------------------------------------
 to carry-on
@@ -135,24 +136,26 @@ to carry-on
 
   ;; PROBLEM: this function is not right...
   ifelse any? crop-patches
-   [set earnings ( (farmworkers * 0.1) * (count crop-patches * 0.1) * agr-comm-price)
+   [set earnings ( (farmworkers * farmer-productivity) * (count crop-patches * land-productivity) * agr-comm-price)
                 + (urban-wage * migrants)
     ifelse ticks > 0
      [set capital capital + earnings - (farmworkers * subsistance-cost)]
      [set capital ini-capital + earnings - (farmworkers * subsistance-cost)]]
    [ifelse any? fallow-patches
+     ;if no cropland but fallow land, then no agricultural earnings, but can readily turn one fallow parcel to crop
      [ask one-of fallow-patches [set pcolor yellow]
       set earnings (urban-wage * migrants)
       ifelse ticks > 0
        [set capital capital + earnings - (farmworkers * subsistance-cost)]
        [set capital ini-capital + earnings - (farmworkers * subsistance-cost)]]
+     ;if no crop or fallow parcels, then no agricultural earnings, and turn one forest parcel to crop at a cost that depends of farmworkers available
      [ask one-of forest-patches [set pcolor yellow]
       set earnings (urban-wage * migrants)
       ifelse ticks > 0
        [set capital capital + earnings - (farmworkers * subsistance-cost) - (0.1 / farmworkers)]
        [set capital ini-capital + earnings - (farmworkers * subsistance-cost) - (0.1 / farmworkers)]]]
-   ;if every household member migrates, then household no longer exists
 
+   ;if every household member migrates, then household no longer exists
    if farmworkers = 0
    [die]
   ]
@@ -161,16 +164,17 @@ to carry-on
 
 end
 ;------------------------------------------------------------------------------
+;this whole procedure needs to be revised
 to assess-decide
   ; each houshold assess its assets (land, labor) and external conditions (prices and wages), to decide what to do next
   ask households [
     let crop-patches landholdings with [pcolor = yellow]
     let forest-patches landholdings with [pcolor = green]
     let fallow-patches landholdings with [pcolor = brown]
-    let status-quo-uti (count crop-patches * farmworkers * agr-comm-price) + (urban-wage * migrants)
+    let status-quo-uti (count crop-patches * land-productivity * (farmworkers * farmer-productivity) * agr-comm-price) + (urban-wage * migrants)
 
     let defo-cost (0.1 / farmworkers)
-    let pot-extra-farm (((1 + count crop-patches) * farmworkers * agr-comm-price) - defo-cost)
+    let pot-extra-farm (((1 + count crop-patches * land-productivity) * (farmer-productivity * farmworkers) * agr-comm-price) - defo-cost)
 
     let migra-cost (10 / (1 + count (my-links)))
     let pot-extra-mig ((urban-wage * (1 + migrants)) - migra-cost)
@@ -209,8 +213,8 @@ end
 GRAPHICS-WINDOW
 367
 12
-835
-504
+788
+454
 50
 50
 4.07
@@ -234,10 +238,10 @@ ticks
 30.0
 
 BUTTON
-37
-560
-103
-593
+201
+22
+267
+55
 NIL
 setup
 NIL
@@ -251,10 +255,10 @@ NIL
 1
 
 BUTTON
-147
-560
-210
-593
+297
+22
+360
+55
 NIL
 go
 NIL
@@ -306,7 +310,7 @@ ini-urban-wage
 ini-urban-wage
 0
 10
-1
+0
 1
 1
 NIL
@@ -331,12 +335,12 @@ SLIDER
 205
 206
 355
-240
+239
 ini-capital
 ini-capital
 0
 10
-1
+10
 1
 1
 NIL
@@ -420,10 +424,10 @@ PENS
 "remittances" 1.0 0 -10022847 true "" "plot (urban-wage * \nsum [migrants] of households)"
 
 BUTTON
-149
-597
-213
-631
+297
+59
+361
+93
 NIL
 go
 T
@@ -444,13 +448,13 @@ CHOOSER
 ini-landscape
 ini-landscape
 "random" "frontier" "quadrants" "bands" "cartoon"
-3
+2
 
 SLIDER
 6
 459
 179
-493
+492
 subsistance-cost
 subsistance-cost
 0
@@ -465,7 +469,7 @@ SLIDER
 5
 367
 178
-401
+400
 fallow-to-forest
 fallow-to-forest
 0
@@ -480,7 +484,7 @@ SLIDER
 5
 403
 178
-437
+436
 crop-to-fallow
 crop-to-fallow
 0
@@ -495,7 +499,7 @@ MONITOR
 567
 514
 656
-560
+559
 av. earnings
 (sum [capital] of households) / count households
 1
@@ -506,10 +510,10 @@ SWITCH
 90
 282
 203
-316
+315
 Δwage?
 Δwage?
-0
+1
 1
 -1000
 
@@ -517,7 +521,7 @@ SWITCH
 89
 245
 202
-279
+278
 Δag-price?
 Δag-price?
 1
@@ -541,6 +545,36 @@ false
 "" ""
 PENS
 "earnings" 1.0 1 -16777216 true "" "histogram [earnings] of turtles"
+
+SLIDER
+183
+368
+356
+401
+farmer-productivity
+farmer-productivity
+0
+0.5
+0.1
+0.05
+1
+NIL
+HORIZONTAL
+
+SLIDER
+183
+403
+355
+436
+land-productivity
+land-productivity
+0
+0.5
+0.1
+0.05
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
