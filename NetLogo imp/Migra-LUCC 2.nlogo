@@ -621,7 +621,9 @@ av. capital
 @#$#@#$#@
 ## WHAT IS IT?
 
-VERSION 2: Buindilnf on the first model (early November 2016: random heterogenous landscape), I revise towards i) threshold for migration (normally distributed), and ii) landscape for experiments (quadrants, bands, homogenous, hand-drawn cartoon, etc).
+VERSION 3, latest changes: 1) multiple options for initial landscape are now possible: quadrants, bands, homogenous forest, and random (this is intended for checking model performance and for experiments further ahead). 2) mistakes with the calculation of earnings were solved. 3) the code has been organized much betterm starting with a list of key issues to tackle and changes to make at the top of teh code.
+
+Next changes include: 1) the possibility of hand-drawn cartoon landscapes to represent simplified versions of real landscape features. 2) implement a threshold for migration (μ) distributed normally across the whole population of households (with a variance that can be manipulated).
 
 ***************************************************************************************
 
