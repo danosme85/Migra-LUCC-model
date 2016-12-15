@@ -1,3 +1,28 @@
+
+;;;  MODEL ISSUES STILL TO DEAL WITH AND CHANGES TO IMPLEMENT:
+
+; * CAPITAL has a crazy variance
+; * NETWORK links should not be lost after a household moves away, rather rural households with links to households
+;   that have migrated should have reduced costs for migrating >> Therefore, the information about initial links (or
+;   even new acquiered ones) should be stored by each agent as an attribute
+; * LANDSCAPE sucession rules should operate only in the landscape that is not part one any houlsehold's landholdings
+; * LANDSCAPE parcels should be heterogenous in terms of agricultural suitability
+; * LANDSPAPE spatial effects on the landscape: 1) forest on agricultural productivity (ecosystem services), 2) forest recolonization sources
+; * LANDSCAPE memory of parcels: 1) reducing productivity of lands never in fallow, 2) forest recolonization memory
+; * LANDHOLDINGS distribute land in a better way: not simply radius, but in more varied forms, capable more or all of the parcels,
+;   even if only few households are included
+; * LANDHOLDINGS how to let households be aware of their parcels and their qualities, so that the land changes are not done on any random parcel of a given land cover
+; * HOUSEHOLDS should be heterogenous in terms of tecnology and practices, altering their labor productivity
+; * AGENTS as individual have to be build, so to include landless peasants
+; * AGENTS who can hire farmworkers should also be developed (with rural households having a path to transform, if wealthy)
+; * PROCEDURE simulate labor market: residents can work beyond their household, not only in the city but on others' land)
+; * PROCEDURE simulate land market: households do not always just leave and abandon their landholdings, there has to be an option
+;   for selling it
+; * PROCEDURE intensification by investiging capital in cropland parcels should be possible (particularly investing remittances)
+; * PROCEDURE extensification by deforesting land previously not in landholdings?? (particularly investing remittances)
+; * PROCEDURE rural off-farm livelihood should be possible (particularly investing remittances)
+
+
 globals [
   agr-comm-price
   urban-wage
@@ -5,7 +30,6 @@ globals [
 
 patches-own [
   ag-suit      ;TO-DO: agricultural suitability (quality) [multiplier] CURRENTLY mixed up with land-productivity
-  state        ;either forest, crop, or fallow. NOTE: so far this is useless, as onlythe color is used
 ]
 
 breed [households household]
@@ -66,36 +90,28 @@ to create-landscape
      ask patches with [pxcor >= max-pxcor - ((2 * max-pxcor) / 3)] [set pcolor yellow]]
     ;match patch color with state
     ;; NOTE: this is useless at the moment
-    ask patches [
-    if pcolor = green  [set state "forest"]
-    if pcolor = brown  [set state "crop"]
-    if pcolor = yellow [set state "forest"]]
 
 end
 ;------------------------------------------------------------------------------
 to create-village
   create-households num-households [
     setxy random-xcor random-ycor
-    set size 2
+    set size 3
     set color gray - 2
     ;define household's landholdings, allowing for some variability in their size
     ;; FROM: http://netlogo-users.18673.x6.nabble.com/Spacing-between-randomly-placed-turtles-td4861328.html
      move-to one-of patches with [not any? households in-radius 8]
 
     ; assign number of household members that are migrants and resident farmworkers (also defining houseold size)
-    set capital ini-capital + random-float 1
+    set capital ini-capital + random-float 5
     set migrants random 1
     set farmworkers random 5 + 2
 
     ; assign patches in random radius as landholdings, in which each household then makes decisions (rather than having separate accounts for each land cover/use type)
-    let land-size (random 3) + 1
+    let land-size (random 5) + 2
     set landholdings patches in-radius (land-size)
     ;; TO-DO: draw a boundary around the land of each household to visualize this variability
 
-    ;; AlTERNATIVELY:
-     ;set forest-patches patches with [pcolor = green] in-radius (land-size)
-     ;set crop-patches patches with [pcolor = yellow] in-radius (land-size)
-     ;set fallow-patches patches with [pcolor = brown] in-radius (land-size)
   ]
 end
 ;------------------------------------------------------------------------------
@@ -124,7 +140,7 @@ to agr-comm-market
    ifelse ticks = 0
     [set agr-comm-price ini-agr-comm-price]
     [set agr-comm-price agr-comm-price - 0.1 ]]
-    [set agr-comm-price ini-agr-comm-price]
+   [set agr-comm-price ini-agr-comm-price]
 end
 ;------------------------------------------------------------------------------
 to carry-on
@@ -136,28 +152,27 @@ to carry-on
 
   ;; PROBLEM: this function is not right...
   ifelse any? crop-patches
-   [set earnings ( (farmworkers * farmer-productivity) * (count crop-patches * land-productivity) * agr-comm-price)
-                + (urban-wage * migrants)
-    ifelse ticks > 0
-     [set capital capital + earnings - (farmworkers * subsistance-cost)]
-     [set capital ini-capital + earnings - (farmworkers * subsistance-cost)]]
+   [set earnings ( (farmworkers * farmer-productivity) * (count crop-patches * land-productivity) * agr-comm-price) + (urban-wage * migrants)
+    set capital capital + earnings - (farmworkers * subsistance-cost)]
    [ifelse any? fallow-patches
      ;if no cropland but fallow land, then no agricultural earnings, but can readily turn one fallow parcel to crop
      [ask one-of fallow-patches [set pcolor yellow]
       set earnings (urban-wage * migrants)
-      ifelse ticks > 0
-       [set capital capital + earnings - (farmworkers * subsistance-cost)]
-       [set capital ini-capital + earnings - (farmworkers * subsistance-cost)]]
+      set capital capital + earnings - (farmworkers * subsistance-cost)]
      ;if no crop or fallow parcels, then no agricultural earnings, and turn one forest parcel to crop at a cost that depends of farmworkers available
      [ask one-of forest-patches [set pcolor yellow]
       set earnings (urban-wage * migrants)
-      ifelse ticks > 0
-       [set capital capital + earnings - (farmworkers * subsistance-cost) - (0.1 / farmworkers)]
-       [set capital ini-capital + earnings - (farmworkers * subsistance-cost) - (0.1 / farmworkers)]]]
+      set capital capital + earnings - (farmworkers * subsistance-cost) - (0.1 / farmworkers)]]
 
    ;if every household member migrates, then household no longer exists
-   if farmworkers = 0
-   [die]
+   if farmworkers = 0 [die]
+
+;   if earnings < 0 [set color red]
+;   if earnings > 10 [set color blue]
+
+   if capital < 0 [set color red]
+   if capital > 10 [set color blue]
+
   ]
 
    ;; TO-DO: consider including household life-cycle (births, deaths, aging, etc.)
@@ -182,11 +197,12 @@ to assess-decide
     if pot-extra-farm > (status-quo-uti / 20)
      [if  any? forest-patches
        [ask one-of forest-patches [set pcolor yellow]]]
-    ;
+
+    if random-float 1 < ω [
     if pot-extra-mig > (status-quo-uti / 20 )
      [if farmworkers > 0
        [set migrants migrants + 1
-        set farmworkers farmworkers - 1]]
+        set farmworkers farmworkers - 1]]]
     ;
     if any? fallow-patches
      [if (count crop-patches) > (farmworkers * 2)
@@ -211,13 +227,13 @@ to sucession
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-367
-12
-788
-454
+482
+62
+1034
+635
 50
 50
-4.07
+5.37
 1
 10
 1
@@ -280,7 +296,7 @@ num-households
 num-households
 0
 100
-70
+49
 1
 1
 NIL
@@ -310,7 +326,7 @@ ini-urban-wage
 ini-urban-wage
 0
 10
-0
+1
 1
 1
 NIL
@@ -340,17 +356,17 @@ ini-capital
 ini-capital
 0
 10
-10
+1
 1
 1
 NIL
 HORIZONTAL
 
 PLOT
-840
-12
-1209
-157
+1036
+10
+1335
+155
 demographics
 NIL
 NIL
@@ -367,10 +383,10 @@ PENS
 "household size" 1.0 0 -16777216 true "" "plot (sum [migrants + farmworkers] of households)"
 
 PLOT
-840
-307
-1210
-466
+1036
+305
+1338
+464
 landscape
 NIL
 NIL
@@ -387,7 +403,7 @@ PENS
 "fallow lands" 1.0 0 -10402772 true "" "plot 100 * (count patches with [pcolor = brown]) / count patches"
 
 PLOT
-839
+1037
 467
 1209
 636
@@ -405,10 +421,10 @@ PENS
 "default" 1.0 1 -16777216 true "histogram [count (my-links)] of households" "histogram [count (my-links)] of households"
 
 PLOT
-840
-160
-1210
-305
+1036
+158
+1336
+303
 accounting
 NIL
 NIL
@@ -458,9 +474,9 @@ SLIDER
 subsistance-cost
 subsistance-cost
 0
-10
-3
 1
+0.4
+0.1
 1
 NIL
 HORIZONTAL
@@ -474,7 +490,7 @@ fallow-to-forest
 fallow-to-forest
 0
 10
-1
+10
 1
 1
 NIL
@@ -496,12 +512,12 @@ NIL
 HORIZONTAL
 
 MONITOR
-567
-514
-656
-559
+715
+16
+804
+61
 av. earnings
-(sum [capital] of households) / count households
+(sum [earnings] of households) / count households
 1
 1
 11
@@ -529,22 +545,22 @@ SWITCH
 -1000
 
 PLOT
-1213
-466
-1511
-633
-earnings
+1215
+467
+1384
+634
+financial capital
 NIL
 NIL
 0.0
-10.0
+100.0
 0.0
 10.0
 true
 false
 "" ""
 PENS
-"earnings" 1.0 1 -16777216 true "" "histogram [earnings] of turtles"
+"capital" 1.0 1 -2674135 true "" "histogram [capital] of turtles"
 
 SLIDER
 183
@@ -575,6 +591,32 @@ land-productivity
 1
 NIL
 HORIZONTAL
+
+SLIDER
+189
+108
+361
+141
+ω
+ω
+0
+1
+0.3
+0.1
+1
+NIL
+HORIZONTAL
+
+MONITOR
+627
+15
+713
+60
+av. capital
+(sum [capital] of households) / count households
+1
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
