@@ -21,6 +21,8 @@
 ; * PROCEDURE intensification by investiging capital in cropland parcels should be possible (particularly investing remittances)
 ; * PROCEDURE extensification by deforesting land previously not in landholdings?? (particularly investing remittances)
 ; * PROCEDURE rural off-farm livelihood should be possible (particularly investing remittances)
+; * ENVIRIONMENT currently market signals are either stable or gradually changing (increasing for urban wages, and decreasing for agricultural commodities). In any case
+;   all agents sense these signals at the time-step of decision making only. One intresting option could be to allow for (heterogenous) delays in the sensing of this information
 
 
 globals [
