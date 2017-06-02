@@ -492,7 +492,7 @@ fallow-to-forest
 fallow-to-forest
 0
 10
-10
+1
 1
 1
 NIL
@@ -531,7 +531,7 @@ SWITCH
 315
 Δwage?
 Δwage?
-1
+0
 1
 -1000
 
@@ -542,7 +542,7 @@ SWITCH
 278
 Δag-price?
 Δag-price?
-1
+0
 1
 -1000
 
